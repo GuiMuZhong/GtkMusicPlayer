@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 		user_ui(argc, argv);
 	}
 	else {
-		execlp("mplayer", "mplayer", "-slave", "-quiet", "twotigers.mp3", NULL);
+		//execlp("mplayer", "mplayer", "-slave", "-quiet", "twotigers.mp3", NULL);
 	}
 	
 	return 0;
@@ -57,7 +57,7 @@ void user_ui(int argc, char *argv[])
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_voice), 0.5);
 	gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_voice), "VOICE");
 	GtkWidget *btn_voice = gtk_button_new_with_label("Mute");
-	gtk_table_attach_defaults(GTK_TABLE(table), btn_last, 2, 3, 2, 3);
+	gtk_table_attach_defaults(GTK_TABLE(table), btn_voice, 2, 3, 2, 3);
 
 	// 上一首 开始 下一首
 	GtkWidget *btn_last = gtk_button_new_with_label("Last");
