@@ -43,7 +43,9 @@ int main(int argc, char *argv[])
 void user_ui(int argc, char *argv[], int kid_pid)
 {
 	fd_ui = open("fifo_music_cmd", O_WRONLY);
+	write(fd_ui, "volume 50 1\n", strlen("volume 50 1\n"));
 	write(fd_ui, "pause\n", strlen("pause\n"));
+	close(fd_ui);
 
 	char str_kid_ped[10];
 	sprintf(str_kid_ped, "%d", kid_pid);
@@ -146,25 +148,26 @@ void deal_button(GtkWidget *button, gpointer user_data)
 
 		gtk_label_set_text(GTK_LABEL(label_music_name), music_list[idx_music] + 8);
 	}
-	// else if(strbtn[0] == 'U') {
-	// 	double voice = gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progress_voice));
-	// 	int du = voice * 100 + 5;
-	// 	if(du > 100) du = 10;
-	// 	char str_cmd[50];
-	// 	sprintf(str_cmd, "volume %d 1\n", du);
-	// 	write(fd_ui, str_cmd, strlen(str_cmd));
-	// }
-	// else if(strbtn[0] == 'D') {
-	// 	double voice = gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progress_voice));
-	// 	int du = voice * 100 - 5;
-	// 	if(du < 0) du = 0;
-	// 	char str_cmd[50];
-	// 	sprintf(str_cmd, "volume %d 1\n", du);
-	// 	write(fd_ui, str_cmd, strlen(str_cmd));
-	// }
+	else if(strbtn[0] == 'U') {
+		double voice = gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progress_voice));
+		int du = voice * 100 + 5;
+		if(du > 100) du = 10;
+		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_voice), du / 100.0 );
+		char str_cmd[50];
+		sprintf(str_cmd, "volume %d 1\n", du);
+		write(fd_ui, str_cmd, strlen(str_cmd));
+	}
+	else if(strbtn[0] == 'D') {
+		double voice = gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progress_voice));
+		int du = voice * 100 - 5;
+		if(du < 0) du = 0;
+		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_voice), du / 100.0 );
+		char str_cmd[50];
+		sprintf(str_cmd, "volume %d 1\n", du);
+		write(fd_ui, str_cmd, strlen(str_cmd));
+	}
 
 	close(fd_ui);
-
 }
 
 void music_player()
