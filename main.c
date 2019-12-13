@@ -10,6 +10,7 @@
 #include <pthread.h>
 
 int fd_ui, fd[2];
+int flag = 0;
 GtkWidget *label_music_name;
 GtkWidget *progress_voice;
 GtkWidget *progress_speed;
@@ -48,8 +49,8 @@ int main(int argc, char *argv[])
 
 void* progress_speed_fun1(void * arg)
 {
-	//fd_ui = open("fifo_music_cmd", O_WRONLY);
 	while(1) {
+		while(!flag);
 		write(fd_ui, "get_percent_pos\n", strlen("get_percent_pos\n"));
 		sleep(1);
 	}
@@ -78,9 +79,6 @@ void user_ui(int argc, char *argv[], int kid_pid)
 {
 	fd_ui = open("fifo_music_cmd", O_WRONLY);
 	write(fd_ui, "volume 50 1\n", strlen("volume 50 1\n"));
-	write(fd_ui, "pause\n", strlen("pause\n"));
-	write(fd_ui, "gtk_percent_pos\n", strlen("gtk_percent_pos\n"));
-	// close(fd_ui);
 
 	char str_kid_ped[10];
 	sprintf(str_kid_ped, "%d", kid_pid);
@@ -125,13 +123,6 @@ void user_ui(int argc, char *argv[], int kid_pid)
 	GtkWidget *btn_next = gtk_button_new_with_label("Next");
 	gtk_table_attach_defaults(GTK_TABLE(table), btn_next, 2, 3, 4, 5);
 
-	g_signal_connect(btn_voice, "clicked", G_CALLBACK(deal_button), NULL);
-	g_signal_connect(btn_last, "clicked", G_CALLBACK(deal_button), NULL);
-	g_signal_connect(btn_start, "clicked", G_CALLBACK(deal_button), NULL);
-	g_signal_connect(btn_next, "clicked", G_CALLBACK(deal_button), NULL);
-	g_signal_connect(btn_up, "clicked", G_CALLBACK(deal_button), NULL);
-	g_signal_connect(btn_down, "clicked", G_CALLBACK(deal_button), NULL);
-
 	pthread_t tid_progress_speed1;
 	pthread_create(&tid_progress_speed1, NULL, progress_speed_fun1, NULL);
 	pthread_detach(tid_progress_speed1);
@@ -139,6 +130,13 @@ void user_ui(int argc, char *argv[], int kid_pid)
 	pthread_t tid_progress_speed2;
 	pthread_create(&tid_progress_speed2, NULL, progress_speed_fun2, NULL);
 	pthread_detach(tid_progress_speed2);
+
+	g_signal_connect(btn_voice, "clicked", G_CALLBACK(deal_button), NULL);
+	g_signal_connect(btn_last, "clicked", G_CALLBACK(deal_button), NULL);
+	g_signal_connect(btn_start, "clicked", G_CALLBACK(deal_button), NULL);
+	g_signal_connect(btn_next, "clicked", G_CALLBACK(deal_button), NULL);
+	g_signal_connect(btn_up, "clicked", G_CALLBACK(deal_button), NULL);
+	g_signal_connect(btn_down, "clicked", G_CALLBACK(deal_button), NULL);
 	
 	gtk_widget_show_all(win);
 
@@ -162,18 +160,26 @@ void deal_button(GtkWidget *button, gpointer user_data)
 	if(strbtn[0] == 'M') {
 		gtk_button_set_label(GTK_BUTTON(button), "Voice");
 		write(fd_ui, "mute 1\n", strlen("mute 1\n"));
+		if(flag == 0) {
+			write(fd_ui, "pause\n", strlen("pause\n"));
+		}
 	}
 	else if(strbtn[0] == 'V') {
 		gtk_button_set_label(GTK_BUTTON(button), "Mute");
 		write(fd_ui, "mute 0\n", strlen("mute 0\n"));
+		if(flag == 0) {
+			write(fd_ui, "pause\n", strlen("pause\n"));
+		}
 	}
 	else if(strbtn[0] == 'S') {
 		write(fd_ui, "loadfile ./music/1.mp3\n", strlen("loadfile ./music/1.mp3\n"));
 		gtk_button_set_label(GTK_BUTTON(button), "Pause");
 		gtk_label_set_text(GTK_LABEL(label_music_name), "1.mp3");
+		flag = 1;
 	}
 	else if(strbtn[0] == 'P') {
 		write(fd_ui, "pause\n", strlen("pause\n"));
+		flag = !flag;
 	}
 	else if(strbtn[0] == 'L') {
 		idx_music = (idx_music - 1 + 5) % 5;
@@ -182,6 +188,8 @@ void deal_button(GtkWidget *button, gpointer user_data)
 		write(fd_ui, str_cmd, strlen(str_cmd));
 
 		gtk_label_set_text(GTK_LABEL(label_music_name), music_list[idx_music] + 8);
+
+		flag = 1;
 	}
 	else if(strbtn[0] == 'N') {
 		idx_music = (idx_music + 1) % 5;
@@ -190,6 +198,8 @@ void deal_button(GtkWidget *button, gpointer user_data)
 		write(fd_ui, str_cmd, strlen(str_cmd));
 
 		gtk_label_set_text(GTK_LABEL(label_music_name), music_list[idx_music] + 8);
+
+		flag = 1;
 	}
 	else if(strbtn[0] == 'U') {
 		double voice = gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progress_voice));
@@ -199,6 +209,10 @@ void deal_button(GtkWidget *button, gpointer user_data)
 		char str_cmd[50];
 		sprintf(str_cmd, "volume %d 1\n", du);
 		write(fd_ui, str_cmd, strlen(str_cmd));
+
+		if(flag == 0) {
+			write(fd_ui, "pause\n", strlen("pause\n"));
+		}
 	}
 	else if(strbtn[0] == 'D') {
 		double voice = gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progress_voice));
@@ -208,9 +222,11 @@ void deal_button(GtkWidget *button, gpointer user_data)
 		char str_cmd[50];
 		sprintf(str_cmd, "volume %d 1\n", du);
 		write(fd_ui, str_cmd, strlen(str_cmd));
-	}
 
-	// close(fd_ui);
+		if(flag == 0) {
+			write(fd_ui, "pause\n", strlen("pause\n"));
+		}
+	}
 }
 
 void music_player()
@@ -220,5 +236,5 @@ void music_player()
 				"mplayer", 
 				"-slave", "-quiet", "-idle", 
 				"-input", 
-				"file=./fifo_music_cmd", "./music/1.mp3", NULL);
+				"file=./fifo_music_cmd", NULL);
 }
