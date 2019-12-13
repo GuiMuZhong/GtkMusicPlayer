@@ -8,12 +8,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "uart.h"
 
 int fd_ui, fd[2];
-int flag = 0;
+int flag = 0, flag_start = 0;
 GtkWidget *label_music_name;
 GtkWidget *progress_voice;
 GtkWidget *progress_speed;
+GtkWidget *btn_start;
 int idx_music = 0;
 char *music_list[20] = {"./music/1.mp3", "./music/2.mp3", "./music/3.mp3", "./music/4.mp3", "./music/5.mp3"};
 
@@ -63,7 +65,7 @@ void* progress_speed_fun2(void * arg)
 		char buffer[128] = "";
 		read(fd[0], buffer, sizeof(buffer));
 		if(strlen(buffer) > 21) {
-			if(buffer[0] == 'A' && buffer[19] == 'N') {
+			if(buffer[0] == 'A' && buffer[19] == 'N') {		// ANS_PERCENT_POSITION=1
 				int pbar = 0;
 				for(int i = 21; buffer[i] >= '0' && buffer[i] <= '9'; i++) {
 					pbar = pbar * 10 + buffer[i] - '0';
@@ -73,6 +75,59 @@ void* progress_speed_fun2(void * arg)
 		}
 	}
 	
+}
+
+void* voice_control_fun(void *arg)
+{
+	int fd1 = uart_init("/dev/ttyUSB0");
+	while(1) {
+		char text[128] = "";
+		uart_readline(fd1, text, sizeof(text), 10000);
+		printf("cqw *** I am the voice_control_fun\n");
+		if(text[0] != 0) {
+			printf("cqw >>> %s\n", text);
+			if(text[0] == 'z') {
+				if(flag == 1) {
+					write(fd_ui, "pause\n", strlen("pause\n"));
+					flag = 0;
+				}
+			}
+			else if(text[0] == 'b') {
+				if(flag_start == 0) {
+					write(fd_ui, "loadfile ./music/1.mp3\n", strlen("loadfile ./music/1.mp3\n"));
+					gtk_button_set_label(GTK_BUTTON(btn_start), "Pause");
+					gtk_label_set_text(GTK_LABEL(label_music_name), "1.mp3");
+					flag = 1;
+					flag_start = 1;
+				}
+				else if(flag == 0) {
+					write(fd_ui, "pause\n", strlen("pause\n"));
+					flag = 1;
+				}
+			}
+			else if(text[0] == 's') {
+				idx_music = (idx_music - 1 + 5) % 5;
+				char str_cmd[50];
+				sprintf(str_cmd, "loadfile %s\n", music_list[idx_music]);
+				write(fd_ui, str_cmd, strlen(str_cmd));
+
+				gtk_label_set_text(GTK_LABEL(label_music_name), music_list[idx_music] + 8);
+
+				flag = 1;
+			}
+			else if(text[0] == 'x') {
+				idx_music = (idx_music + 1) % 5;
+				char str_cmd[50];
+				sprintf(str_cmd, "loadfile %s\n", music_list[idx_music]);
+				write(fd_ui, str_cmd, strlen(str_cmd));
+
+				gtk_label_set_text(GTK_LABEL(label_music_name), music_list[idx_music] + 8);
+
+				flag = 1;
+			}
+		}
+
+	}
 }
 
 void user_ui(int argc, char *argv[], int kid_pid)
@@ -131,6 +186,10 @@ void user_ui(int argc, char *argv[], int kid_pid)
 	pthread_create(&tid_progress_speed2, NULL, progress_speed_fun2, NULL);
 	pthread_detach(tid_progress_speed2);
 
+	pthread_t tid_voice;
+	pthread_create(&tid_voice, NULL, voice_control_fun, NULL);
+	pthread_detach(tid_voice);
+
 	g_signal_connect(btn_voice, "clicked", G_CALLBACK(deal_button), NULL);
 	g_signal_connect(btn_last, "clicked", G_CALLBACK(deal_button), NULL);
 	g_signal_connect(btn_start, "clicked", G_CALLBACK(deal_button), NULL);
@@ -176,6 +235,7 @@ void deal_button(GtkWidget *button, gpointer user_data)
 		gtk_button_set_label(GTK_BUTTON(button), "Pause");
 		gtk_label_set_text(GTK_LABEL(label_music_name), "1.mp3");
 		flag = 1;
+		flag_start = 1;
 	}
 	else if(strbtn[0] == 'P') {
 		write(fd_ui, "pause\n", strlen("pause\n"));
